@@ -1,5 +1,4 @@
 # API keys and secrets
-.env
 .env~
 
 # gemini-cli settings
@@ -69,3 +68,4 @@ __pycache__/
 
 integration-tests/concurrent-runner/output/
 integration-tests/concurrent-runner/task-*
+config.bat
