@@ -235,7 +235,7 @@ export class ShellExecutionService {
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsVerbatimArguments: isWindows,
         detached: !isWindows,
-        windowsHide: isWindows,
+        windowsHide: false,
         env: {
           ...process.env,
           QWEN_CODE: '1',

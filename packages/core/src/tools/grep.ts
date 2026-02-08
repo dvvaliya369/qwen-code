@@ -298,7 +298,7 @@ class GrepToolInvocation extends BaseToolInvocation<
           const output = await new Promise<string>((resolve, reject) => {
             const child = spawn('git', gitArgs, {
               cwd: absolutePath,
-              windowsHide: true,
+              windowsHide: false,
             });
             const stdoutChunks: Buffer[] = [];
             const stderrChunks: Buffer[] = [];
@@ -367,7 +367,7 @@ class GrepToolInvocation extends BaseToolInvocation<
           const output = await new Promise<string>((resolve, reject) => {
             const child = spawn('grep', grepArgs, {
               cwd: absolutePath,
-              windowsHide: true,
+              windowsHide: false,
             });
             const stdoutChunks: Buffer[] = [];
             const stderrChunks: Buffer[] = [];
