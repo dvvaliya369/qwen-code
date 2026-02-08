@@ -1,5 +1,4 @@
 # API keys and secrets
-.env
 .env~
 
 # gemini-cli settings
@@ -73,3 +72,4 @@ integration-tests/concurrent-runner/task-*
 # storybook
 *storybook.log
 storybook-static
+config.bat
