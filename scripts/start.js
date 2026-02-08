@@ -17,7 +17,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { spawn, execSync } from 'node:child_process';
+import { spawn, execSync, spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
@@ -76,6 +76,34 @@ const child = spawn('node', nodeArgs, {
   stdio: 'inherit',
   env,
   cwd: workingDir,
+});
+
+// Forward termination signals to the child process.
+// On Windows, signals are not automatically propagated to child processes,
+// which can leave them running and holding file locks on the .exe.
+const isWindows = process.platform === 'win32';
+const forwardSignal = (signal) => {
+  if (child.pid && !child.killed) {
+    if (isWindows) {
+      spawnSync('taskkill', ['/pid', child.pid.toString(), '/f', '/t']);
+    } else {
+      child.kill(signal);
+    }
+  }
+};
+process.on('SIGINT', () => forwardSignal('SIGINT'));
+process.on('SIGTERM', () => forwardSignal('SIGTERM'));
+process.on('SIGHUP', () => forwardSignal('SIGHUP'));
+
+// Ensure the child process tree is terminated when the parent exits.
+process.on('exit', () => {
+  if (child.pid && !child.killed) {
+    if (isWindows) {
+      spawnSync('taskkill', ['/pid', child.pid.toString(), '/f', '/t']);
+    } else {
+      child.kill('SIGTERM');
+    }
+  }
 });
 
 child.on('close', (code) => {

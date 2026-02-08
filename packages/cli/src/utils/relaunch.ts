@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { RELAUNCH_EXIT_CODE } from './processUtils.js';
 import { writeStderrLine } from './stdioHelpers.js';
 
@@ -21,6 +21,23 @@ export async function relaunchOnExitCode(runner: () => Promise<number>) {
       writeStderrLine('Fatal error: Failed to relaunch the CLI process.');
       writeStderrLine(error instanceof Error ? error.message : String(error));
       process.exit(1);
+    }
+  }
+}
+
+/**
+ * Kills a child process tree. On Windows, uses `taskkill /f /t` to ensure
+ * the entire process tree is terminated, preventing file locks on .exe files.
+ */
+function killChildProcessTree(
+  child: ReturnType<typeof spawn>,
+  signal: NodeJS.Signals = 'SIGTERM',
+): void {
+  if (child.pid && !child.killed) {
+    if (process.platform === 'win32') {
+      spawnSync('taskkill', ['/pid', child.pid.toString(), '/f', '/t']);
+    } else {
+      child.kill(signal);
     }
   }
 }
@@ -56,9 +73,29 @@ export async function relaunchAppInChildProcess(
       env: newEnv,
     });
 
+    // Forward termination signals to the child process.
+    // On Windows, signals are not automatically propagated to child processes,
+    // which can leave them running and holding file locks on the .exe.
+    const forwardSignal = (signal: NodeJS.Signals) => {
+      killChildProcessTree(child, signal);
+    };
+    const onSigInt = () => forwardSignal('SIGINT');
+    const onSigTerm = () => forwardSignal('SIGTERM');
+    const onExit = () => killChildProcessTree(child);
+
+    process.on('SIGINT', onSigInt);
+    process.on('SIGTERM', onSigTerm);
+    process.on('exit', onExit);
+
     return new Promise<number>((resolve, reject) => {
       child.on('error', reject);
       child.on('close', (code) => {
+        // Remove signal handlers to prevent listener accumulation across
+        // relaunch iterations.
+        process.removeListener('SIGINT', onSigInt);
+        process.removeListener('SIGTERM', onSigTerm);
+        process.removeListener('exit', onExit);
+
         // Resume stdin before the parent process exits.
         process.stdin.resume();
         resolve(code ?? 1);
